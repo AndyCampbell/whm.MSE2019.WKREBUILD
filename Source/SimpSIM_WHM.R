@@ -1,4 +1,4 @@
-#Celtic Sea Herring version of SimpSim
+#Western Horse Mackerek version of SimpSim
 
 if (1==2) {
   fit=FIT;  
