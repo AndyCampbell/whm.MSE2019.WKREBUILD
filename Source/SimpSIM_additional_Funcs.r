@@ -5,6 +5,7 @@
 #landsel=ldsel; landwt=ldwt; stknum=stknm; nmort=nm; tac=tc;   fmult=0.2
 
 SegregBloss  <- function(ab, ssb) log(ifelse(ssb >= refPts[["Bloss"]], ab$a * refPts[["Bloss"]], ab$a * ssb))
+SegregBlim  <- function(ab, ssb) log(ifelse(ssb >= refPts[["Blim"]], ab$a * refPts[["Blim"]], ab$a * ssb))
 
 #function to calculate difference between a given catch and that resulting from fishing at a given F
 tacFdiff <- function(fmult, landsel, landwt, stknum, nmort, disrat, tac){

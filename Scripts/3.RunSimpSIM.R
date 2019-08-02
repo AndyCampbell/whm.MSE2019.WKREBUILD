@@ -18,9 +18,9 @@ refPts[["Blim"]] <- Blim
 refPts[["BmsyTrig"]] <- NA  
 
 #runame, HCR settings
-runName <- stockName
+runName <- "Baseline"
 
-HCR <- 1
+HCR <- 1    #no harvest rule applied
 
 #operating model
 OM <- "OM1"
@@ -35,7 +35,7 @@ TACchng <- NA                     #no TAC change limits
 firstF <- as.numeric(fbar(WG18)[,'2017']) #F in 2017 from WG2018 assessment
 
 #latest assessment year
-assyearNum <- 2018
+assyearNum <- 2017
 
 #Trim off last year of the stock object (why??)
 minYear <- range(stock)["minyear"]
@@ -47,7 +47,8 @@ refPts[["Bloss"]] <- min(ssb(stock))
 # Starting population numbers
 dfWHMParam <- read_delim(file = file.path(MSE.dir,"Data","MSE2019_WHM_Params.dat"),
                          delim=",")
-dfStartN <- dfWHMParam[,c(paste0("Num_2017_",seq(0,14)),"PG.2017")]
+#dfstartN <- dfWHMParam[2:1001,c(paste0("Num_2017_",seq(0,20)))]
+dfstartN <- dfWHMParam[1:1000,c(paste0("Num_2017_",seq(0,20)))]
 
 #Weights and selectivity
 #Number of years for averaging when calculating weights
@@ -73,7 +74,7 @@ recAR <- TRUE
 #this is mirrored when trimming (i.e. [maxRecRes,-maxRecRes])
 maxRecRes <- 1.5 # Default in SimpSIM is 3
 
-SIM <- SimpSIM(fit = FIT,
+SIM <- SimpSIM_WHM(fit = SRR.segreg.no82,
                dfstartN = dfstartN,
                intF = firstF,
                bio.years = c(assyearNum-(numAvgYrsB-1), assyearNum),
@@ -98,3 +99,6 @@ SIM <- SimpSIM(fit = FIT,
                verbose = TRUE,
                HCR = HCR,
                minTAC = minTAC)
+
+dir.create(path = file.path(MSE.dir,"Results",runName), showWarnings = TRUE, recursive = TRUE)
+save.image(file = file.path(MSE.dir,"Results",runName,paste0(OM,"_HCR",HCR,"_SimpSIM_Workspace.Rdata")))

@@ -53,7 +53,7 @@ if (1==2) {
 #' @param verbose Flag, if TRUE (default) indication of the progress of the simulation is provided in the console. Useful to turn to FALSE when knitting documents.
 #' @param extreme.trim Call John Simmonds :-)
 
-SimpSIM <- function(fit,
+SimpSIM_WHM <- function(fit,
                     dfstartN=NA,
                     intF=0.2, #DM: added option for intermediate year F (i.e. F applied for expected CATCH (not TAC) in the first year)
                     bio.years = c(2008, 2012), # years sample weights, M and mat
@@ -77,7 +77,7 @@ SimpSIM <- function(fit,
                     process.error = TRUE, # use predictive recruitment or mean recruitment? (TRUE = predictive)
                     verbose = TRUE,
                     extreme.trim,
-                    HCR = 0, #CSH HCR rule (0=no HCR, 1=1 break point, 2=2 break points
+                    HCR = 0, #HCR rule
                     minTAC = 0) #minimum catch
                     
 {     
@@ -256,7 +256,7 @@ SimpSIM <- function(fit,
     #The F value to test
     Fbar <- Fscan[i]
     
-    # 01/04/2017 - 31/03/2018
+    #2017
     yr <- 1
     
     #initial numbers from file generated from MCMC ASAP run (see sandbox.R)
@@ -293,7 +293,7 @@ SimpSIM <- function(fit,
     #maturity
     Mat.init <- array(as.numeric(FLCore::mat(stk.init)),c(ages,Nmod))
     
-    tmpF <- fFindF(N = Ny[,yr,], W = W.init, M = M.init, Sel = Sel.init, tgt = 10767)
+    tmpF <- fFindF(N = Ny[,yr,], W = W.init, M = M.init, Sel = Sel.init, tgt = 95500)
     
     intendF[yr,] <- tmpF[yr,]
     
@@ -316,121 +316,31 @@ SimpSIM <- function(fit,
     #perceived SSB
     percSSB[yr,] <- ssby[yr, ] * exp(SSBerr[yr,])
     
-    ############################################################################
-    #1/4/2018 to 31/3/2019
+    #subsequent years (2-Nrun)
+    for (j in 2:Nrun) {
+      
+      #update numbers at age
+      Ny[-1,j,] <- Ny[1:(ages-1),j-1,] * exp(-Fy[1:(ages-1),j-1,] - M[1:(ages-1),rsam[j-1,]])
+      Ny[ages,j,] <- Ny[ages,j,] + Ny[ages,j-1,] * exp(-Fy[ages,j-1,] - M[ages,rsam[j-1,]]) #plus group
 
-    yr <- 2
-    
-    #draw recruits    
-    if (process.error){
-      #stochastic recruitment
-      #same residuals for each F value
-      allrecs <- sapply(unique(SR$mod), function(mod) exp(match.fun(mod)(SR,as.numeric(ssb(stk)[,'2016',,,,])) + resids[,1])) #resids[,1]??
-    } else {
-      #mean recruitment
-      #allrecs <- sapply(unique(SR$mod), function(mod) exp(match.fun(mod) (SR,as.numeric(ssb(stk)[,'2016',,,,]))))
-      #allrecs <- sapply(unique(SR$mod), function(mod) exp(match.fun(mod) (SR,as.numeric(ssb(stk)[,'2016',,,,])) + rep(0,length(resids[,1]))))
-      allrecs <- sapply(unique(SR$mod), function(mod) exp(match.fun(mod) (SR.det,as.numeric(ssb(stk)[,'2016',,,,])) + rep(0,length(resids[,1]))))
-    }
-    
-    select <- cbind(seq(Nmod), as.numeric(factor(SR$mod, levels = unique(SR$mod))))
-    
-    #numbers at age
-    #recruits
-    Ny[1,yr,] <- allrecs[select]   #recruits
-    Ny[-1,yr,] <- Ny[1:(ages-1),yr-1,] * exp(-Fy[1:(ages-1),yr-1,] - M[1:(ages-1),rsam[yr-1,]]) #older ages
-    Ny[ages,yr,] <- Ny[ages,yr,] + Ny[ages,yr-1,] * exp(-Fy[ages,yr-1,] - M[ages,rsam[yr-1,]]) #plus group
-
-    #in 2018 we assume a catch of 3335 (reported catch up to 21/12/2018)
-    #tmpF <- fFindF(N = Ny[,yr,],W = WSy[,yr,],M = M[,rsam[yr,]],Sel = sel[,rsamsel[yr,]],tgt = 3335)
-    #31/01/2019 updated information indicates a catch of 4756t
-    tmpF <- fFindF(N = Ny[,yr,],W = WSy[,yr,],M = M[,rsam[yr,]],Sel = sel[,rsamsel[yr,]],tgt = 4756)
-    
-    intendF[yr,] <- tmpF[1,]
-
-    #fishing mortality to realise this catch
-    Fy[,yr,] <- tmpF*sel[,rsamsel[yr,]]
-    
-    #pre-spawning mortality
-    Zpre <- (Fy[,yr,] * Fprop + M[,rsam[yr,]] * Mprop)
-    
-    #catch numbers
-    Cy[,yr,] <- Ny[,yr,] * Fy[,yr,] / (Fy[,yr,] + M[,rsam[yr,]]) * (1 - exp(-Fy[,yr,] - M[,rsam[yr,]]))
-    
-    #SSB
-    ssby[yr,] <- colSums(Mat[,rsam[yr,]] * Ny[,yr,] * west[,rsam[yr,]] / exp(Zpre)[])
-    
-    #perceived SSB
-    percSSB[yr,] <- ssby[yr, ] * exp(SSBerr[yr,])
-    
-
-    ############################################################################
-    # 1/4/2019 to 31/3/2020
-
-    yr <- 3
-    
-    #draw recruits    
-    if (process.error){
-      #stochastic recruitment
-      #same residuals for each F value
-      allrecs <- sapply(unique(SR$mod), function(mod) exp(match.fun(mod)(SR,as.numeric(ssb(stk)[,'2017',,,,])) + resids[,2])) #resids[,2]??
-    } else {
-      #mean recruitment
-      #allrecs <- sapply(unique(SR $ mod), function(mod) exp(match.fun(mod) (SR,as.numeric(ssb(stk)[,'2017',,,,]))))
-      #allrecs <- sapply(unique(SR$mod), function(mod) exp(match.fun(mod)(SR,as.numeric(ssb(stk)[,'2017',,,,])) + rep(0,length(resids[,2]))))
-      allrecs <- sapply(unique(SR$mod), function(mod) exp(match.fun(mod)(SR.det,as.numeric(ssb(stk)[,'2017',,,,])) + rep(0,length(resids[,2]))))
-    }
-
-    select <- cbind(seq(Nmod), as.numeric(factor(SR$mod, levels = unique(SR$mod))))
-    
-    #numbers at age
-    Ny[1,yr,] <- allrecs[select]   #recruits
-    Ny[-1,yr,] <- Ny[1:(ages-1),yr-1,] * exp(-Fy[1:(ages-1),yr-1,] - M[1:(ages-1),rsam[yr-1,]]) #older ages
-    Ny[ages,yr,] <- Ny[ages,yr,] + Ny[ages,yr-1,] * exp(-Fy[ages,yr-1,] - M[ages,rsam[yr-1,]]) #plus group
-    
-    #in 2019 we assume a catch of 4742 (advice)
-    tmpF <- fFindF(N = Ny[,yr,],W = WSy[,yr,],M = M[,rsam[yr,]],Sel = sel[,rsamsel[yr,]],tgt = 4742)
-    #other option is advice + carryover which would be 4742 + 1018 = 5760t
-    
-    intendF[yr,] <- tmpF[1,]
-    
-    #fishing mortality to realise this catch
-    Fy[,yr,] <- tmpF*sel[,rsamsel[yr,]]
-    
-    #pre-spawning mortality
-    Zpre <- (Fy[,yr,] * Fprop + M[,rsam[yr,]] * Mprop)
-    
-    #catch numbers
-    Cy[,yr,] <- Ny[,yr,] * Fy[,yr,] / (Fy[,yr,] + M[,rsam[yr,]]) * (1 - exp(-Fy[,yr,] - M[,rsam[yr,]]))
-    
-    #SSB
-    ssby[yr,] <- colSums(Mat[,rsam[yr,]] * Ny[,yr,] * west[,rsam[yr,]] / exp(Zpre)[])
-    
-    #perceived SSB
-    percSSB[yr,] <- ssby[yr, ] * exp(SSBerr[yr,])
-    
-    #subsequent years (4-Nrun)
-    for (j in 4:Nrun) {
+      #Jan 1
+      ssby[j,] <- apply(array(Mat[,rsam[j,]] * Ny[,j,] * west[,rsam[j,]], c(ages, Nmod)), 2, sum)
       
       #draw recruits    
       if (process.error){
-        #stochastic recruitment
-        #same residuals for each F value
-        #allrecs <- sapply(unique(SR$mod), function(mod) exp(match.fun(mod)(SR,ssby[j-2,]) + resids[,j-1]))
-        allrecs <- sapply(unique(SR$mod), function(mod) exp(match.fun(mod)(SR,ssby[j-2,]) + resids[,j]))
+        #stochastic recruitment, same residuals for each F value
+        allrecs <- sapply(unique(SR$mod), function(mod) exp(match.fun(mod)(SR,ssby[j,]) + resids[,j]))
       } else {
         #mean recruitment
-        #allrecs <- sapply(unique(SR $ mod), function(mod) exp(match.fun(mod) (SR,ssby[j-1,])))
-        #allrecs <- sapply(unique(SR$mod), function(mod) exp(match.fun(mod) (SR,ssby[j-2,]) + rep(0,length(resids[,j]))))
-        allrecs <- sapply(unique(SR$mod), function(mod) exp(match.fun(mod) (SR.det,ssby[j-2,]) + rep(0,length(resids[,j]))))
+        allrecs <- sapply(unique(SR$mod), function(mod) exp(match.fun(mod) (SR.det,ssby[j,]) + rep(0,length(resids[,j]))))
       }
       
       select <- cbind(seq(Nmod), as.numeric(factor(SR$mod, levels = unique(SR$mod))))
       
       #recruits
       Ny[1,j,] <- allrecs[select] #recruits
-      Ny[-1,j,] <- Ny[1:(ages-1),j-1,] * exp(-Fy[1:(ages-1),j-1,] - M[1:(ages-1),rsam[j-1,]]) #older ages
-      Ny[ages,j,] <- Ny[ages,j,] + Ny[ages,j-1,] * exp(-Fy[ages,j-1,] - M[ages,rsam[j-1,]]) #plus group
+      
+      #recruits
       
       #HCR
       Fnext <- switch(
@@ -439,43 +349,16 @@ SimpSIM <- function(fit,
         Fbar*pmin(1,percSSB[j-1,]/Btrigger),
         Fbar*pmin(1,percSSB[j-1,]/Btrigger)
       )
-      
-      # #CSH - new structure to select 1 of 3 HCR types
-      # if (HCR==0){
-      #   #no harvest rule (constant F)
-      #   Fnext <- Fbar
-      #   
-      # } else {
-      #   
-      #   #1 trigger point, requires a value of Btrigger to be supplied
-      #   if (!is.na(Btrigger)) Fnext <- Fbar * pmin(1, SSB * exp(SSBerr[j-1,]) / Btrigger)      
-      #   
-      #   # #DM: new two breakpoint HCR
-      #   # if (is.na(Btrigger)) {
-      #   #   SSBs <- SSB * exp(SSBerr[j-1,]) # get perceived SSBs
-      #   #   Fnext <- Fbar * pmin(1, SSBs * exp(SSBerr[j-1,])) #initiate Fnext object
-      #   #   # Less than Blim <- 0.05
-      #   #   Fnext[SSBs<Blim] <- 0.05
-      #   #   # Between Blim and Bpa
-      #   #   tmpGBlim <- c(SSBs>=Blim); tmpLBpa <- c(SSBs<Bpa)
-      #   #   Fnext[tmpGBlim&tmpLBpa] <- 0.05 + ((SSBs[tmpGBlim&tmpLBpa] - Blim)*(Fbar - 0.05) / (Bpa - Blim)) 
-      #   #   # >Bpa
-      #   #   Fnext[SSBs>=Bpa] <- Fbar
-      #   #   # 20% TAC change limits if >Bpa:
-      #   #   #rhologRec <- apply(log(fit$rby$rec)-fittedlogRec, 2, function(x){cor(x[-length(x)],x[-1])}) 
-      #   #    rm(SSBs)
-      #   # }
-      #   
-      # }
 
       #save the intended F
       intendF[j,] <- Fnext
-
+      
       #apply the F error
       Fnext <- Fnext*exp(Ferr[j,])
-      
+
       #fishing mortality
       Fy[,j,] <- rep(Fnext, each = ages) * sel[,rsamsel[j,]]
+
       
       #if a minimum TAC has been specified then check that this fishing morality will yield this.
       #if not, update the target F
@@ -483,19 +366,19 @@ SimpSIM <- function(fit,
         
         #check if minimum TAC is met
         blnYieldsMin <- colSums(Wy[,j,] * Ny[,j,] * Fy[,j,] / (Fy[,j,] + M[,rsam[j,]]) * (1 - exp(-Fy[,j,] - M[,rsam[j,]])))>=minTAC
-
+        
         #cat(sum(!blnYieldsMin),"\n")
-
+        
         #update F where necessary
         if (sum(!blnYieldsMin)>0) {
           tmpF <- fFindF(N = Ny[,j,],W = WSy[,j,],M = M[,rsam[j,]],Sel = sel[,rsamsel[j,]],tgt = minTAC)
           Fy[,j,!blnYieldsMin] <- tmpF[,!blnYieldsMin]*sel[,rsamsel[j,!blnYieldsMin]]  
-        #  t <- tmpF[1,]*sel[,rsamsel[j,]]
-        #  Fy[,j,!blnYieldsMin] <- t[,!blnYieldsMin]
+          #  t <- tmpF[1,]*sel[,rsamsel[j,]]
+          #  Fy[,j,!blnYieldsMin] <- t[,!blnYieldsMin]
         }
         
-      }      
-      
+      }
+
       #pre-spawning mortality
       Zpre <- rep(Fnext, each = length(Fprop)) * Fprop * sel[,rsamsel[j,]] + M[,rsam[j,]] * Mprop
       
@@ -551,7 +434,6 @@ SimpSIM <- function(fit,
       #   } #end TACchange loop
       
     } #end loop over years
-    
     
     #convert to catch weight
     
@@ -615,10 +497,8 @@ SimpSIM <- function(fit,
   rbp <- rbp[,c(9,8,1:7)]
   
   # STOCK REFERENCE POINTS
-  
   FCrash05 <- Fscan[which.max(cats[2,]):NF][ which(cats[2, which.max(cats[2,]):NF] < 0.05*max(cats[2,]) )[1] ]
   FCrash50 <- Fscan[which.max(cats[4,]):NF][ which(cats[4, which.max(cats[4,]):NF] < 0.05*max(cats[4,]) )[1] ]
-  
   
   # Einar amended 30.1.2014
   if(missing(extreme.trim)) {
